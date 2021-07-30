@@ -1,3 +1,7 @@
+#define ESP32_RTOS  // Uncomment this line if you want to use the code with freertos only on the ESP32
+                    // Has to be done before including "OTA.h"
+
+
 #ifdef ESP32
 #include <WiFi.h>
 #include <ESPmDNS.h>

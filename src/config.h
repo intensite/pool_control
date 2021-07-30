@@ -3,7 +3,7 @@
 
 
 #define DEBUG 1
-#define SCAN_TIME_INTERVAL 3000
+#define SCAN_TIME_INTERVAL 5000
 
 
 // PIN ASSIGNMENT 
@@ -11,8 +11,9 @@
 #define PIEZO_BUZZER 27
 #define HEAT_PUMP_RELAY 19
 #define MAIN_PUMP_SSR 17
+#define STATUS_LED 16
 
-// #define WATER_TEMP_SENSOR 20
+#define WATER_TEMP_SENSOR 32
 // #define AMBIANT_AIR_TEMP_SENSOR 21
 // #define CASE_TEMP_SENSOR 21
 
@@ -23,6 +24,10 @@
 // #define SDA 21 
 // #define SCL 22 
 
+// MQTT STUFF
+#define WATER_TEMP_TOPIC "POOL/water"
+#define COMMANDTOPIC "POOL/command"
+#define SERVICETOPIC "POOL/service"
 
 
 #endif // CONFIG_FILE_H1
