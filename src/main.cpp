@@ -7,9 +7,14 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <uDebugLib.h>
+#include <TaskScheduler.h>
 
+bool ledStatus = 0;
+// Scheduler
+Scheduler ts;
 unsigned long previousMillis = 0;
 
+void flashLEDcb();
 int8_t readSensors();
 int8_t transmitSensors();
 int8_t getServerInstructions();
@@ -19,6 +24,11 @@ int8_t transmitStates();
 int8_t setMQTTConnection();
 void reconnect();
 void mqtt_callback(char* topic, byte* payload, unsigned int length);
+
+// ================================================================
+// Tasks definition
+// ================================================================
+Task tflashLED ( 2 * TASK_SECOND, -1, &flashLEDcb, &ts, true );
 
 OneWire oneWire(WATER_TEMP_SENSOR);
 DallasTemperature sensors(&oneWire);
@@ -48,7 +58,10 @@ PubSubClient client(server, 1883, mqtt_callback, wifiClient);
 void setup() {
   pinMode(HEAT_PUMP_RELAY, OUTPUT);     digitalWrite(HEAT_PUMP_RELAY, LOW);
   pinMode(MAIN_PUMP_SSR, OUTPUT);     digitalWrite(MAIN_PUMP_SSR, LOW);
+  pinMode(STATUS_LED, OUTPUT);     digitalWrite(STATUS_LED, LOW);
 
+  ledStatus = LOW;
+  tflashLED.enable();
 
   #ifdef DEBUG
     Serial.begin(115200, SERIAL_8N1);
@@ -101,6 +114,8 @@ void loop() {
 
     // Process MQTT Subscriptions
     client.loop();
+    // Execute all the enabled tasks according to their respective schedules 
+    ts.execute();
 }
 
 /*****************************************************************************************
@@ -110,11 +125,11 @@ int8_t readSensors() {
 
   sensors.requestTemperatures(); 
   temperatureC = sensors.getTempCByIndex(0);
-  temperatureF = sensors.getTempFByIndex(0);
+  // temperatureF = sensors.getTempFByIndex(0);
   DEBUG_PRINT(temperatureC);
   DEBUG_PRINTLN("ºC");
-  DEBUG_PRINT(temperatureF);
-  DEBUG_PRINTLN("ºF");
+  // DEBUG_PRINT(temperatureF);
+  // DEBUG_PRINTLN("ºF");
 
   return 1;
 }
@@ -126,7 +141,12 @@ int8_t readSensors() {
 int8_t transmitSensors() {
 
   char message[10];
-  sprintf(message, "%f", temperatureC);
+
+  // if(temperatureC == DEVICE_DISCONNECTED_C) {
+  //   temperatureC = 0;
+  // }
+
+  sprintf(message, "%.1f", temperatureC);
 
     if (!client.connected()) {
       reconnect();
@@ -148,7 +168,9 @@ int8_t getServerInstructions() {
  * Set the pump running state based on parameter value (from server via MQTT)
  *****************************************************************************************/
 int8_t setPumpState(bool pump_state) {
+  DEBUG_PRINT("About to set pump_state: "); DEBUG_PRINTLN(pump_state);
   digitalWrite(MAIN_PUMP_SSR, pump_state);
+  DEBUG_PRINTLN("Done!");
   return 1;
 }
 
@@ -157,8 +179,9 @@ int8_t setPumpState(bool pump_state) {
  * Set the heater running state based on parameter value (from server via MQTT)
  *****************************************************************************************/
 int8_t setHeaterState(bool heater_state) {
-  
+  DEBUG_PRINT("About to set heater_state: "); DEBUG_PRINTLN(heater_state);
   digitalWrite(HEAT_PUMP_RELAY, heater_state);
+  DEBUG_PRINTLN("Done!");
   return 1;
 }
 
@@ -167,16 +190,23 @@ int8_t setHeaterState(bool heater_state) {
  * Set the heater running state based on parameter value (from server via MQTT)
  *****************************************************************************************/
 int8_t transmitStates() {
-  char message[3];
-  sprintf(message, "%d", pump_current_state);
+  char message_pump[3];
+  char message_heater[3];
+
+  DEBUG_PRINT("pump_current_state: "); DEBUG_PRINTLN(pump_current_state);
+  DEBUG_PRINT("heater_current_state: "); DEBUG_PRINTLN(heater_current_state);
+  sprintf(message_pump, "%d", pump_current_state);
+  DEBUG_PRINT("message_pump: "); DEBUG_PRINTLN(message_pump);
 
   if (!client.connected()) {
     reconnect();
   }
 
-  client.publish(STAT_PUMP_TOPIC, message);
-  sprintf(message, "%d", heater_current_state);
-  client.publish(STAT_HEATER_TOPIC, message);
+  client.publish(STAT_PUMP_TOPIC, message_pump);
+  
+  sprintf(message_heater, "%d", heater_current_state);
+  DEBUG_PRINT("message_heater: "); DEBUG_PRINTLN(message_heater);
+  client.publish(STAT_HEATER_TOPIC, message_heater);
   return 1;
 }
 
@@ -225,4 +255,25 @@ void reconnect() {
       delay(5000);
     }
   }
+}
+
+/****************************************************************************************************************************
+ *                                      TASK CALLBACKs
+ *  Used by the task scheduler define at the top of the file
+ *  The original function was blinking pulsating the led.  This function should be pin to the second core.
+ ****************************************************************************************************************************/
+void flashLEDcb() {
+
+    // Called by task tflashLED
+    // Flash Green LED every seconds
+    if(ledStatus == LOW) {
+        ledStatus = HIGH;
+        digitalWrite(STATUS_LED, HIGH);
+    } else {
+        ledStatus = LOW;
+        digitalWrite(STATUS_LED, LOW);
+    }
+
+    
+
 }
