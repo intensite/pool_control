@@ -35,8 +35,8 @@ DallasTemperature sensors(&oneWire);
 float temperatureC = 0.0;
 float temperatureF = 0.0;
 
-bool pump_current_state = 0;
-bool heater_current_state = 0;
+byte pump_current_state = 0;
+byte heater_current_state = 0;
 
 
 
@@ -227,11 +227,17 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
     DEBUG_PRINTLN(topic);
     DEBUG_PRINTLN(message);
 
-    if (strcmp(topic, CMD_PUMP_TOPIC ) ==0 ) {
+    if (strcmp(topic, CMD_PUMP_TOPIC ) == 0 ) {
       pump_current_state = atoi(message);
+      if (pump_current_state != 0 && pump_current_state != 1) {
+        pump_current_state = 0;
+      }
     }
-    if (strcmp(topic, CMD_HEATER_TOPIC ) ==0 ) {
+    if (strcmp(topic, CMD_HEATER_TOPIC ) == 0 ) {
       heater_current_state = atoi(message);
+      if (heater_current_state != 0 && heater_current_state != 1) {
+        heater_current_state = 0;
+      }
     }
 
 }
